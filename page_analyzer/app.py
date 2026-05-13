@@ -7,7 +7,7 @@ from flask import (
 )
 import validators
 
-from page_analyzer.db import add_url, get_url, get_url_by_name, get_urls
+from page_analyzer.db import add_url, get_url, get_url_by_name, get_urls, add_url_check, get_url_checks
 
 load_dotenv()
 
@@ -56,9 +56,26 @@ def urls_list():
     return render_template('urls.html', urls=urls)
 
 
+@app.post('/urls/<int:id>/checks')
+def check_url(id):
+    url = get_url(id)
+    if not url:
+        flash('Страница не найдена', 'danger')
+        return redirect(url_for('urls_list')), 404
+
+    try:
+        add_url_check(id)
+        flash('Страница успешно проверена', 'success')
+    except Exception:
+        flash('Произошла ошибка при проверке', 'danger')
+
+    return redirect(url_for('url_detail', id=id))
+
+
 @app.get('/urls/<int:id>')
 def url_detail(id):
     url = get_url(id)
     if not url:
         return render_template('404.html'), 404
-    return render_template('url.html', url=url)
+    checks = get_url_checks(id)
+    return render_template('url.html', url=url, checks=checks)
