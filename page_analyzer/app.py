@@ -6,6 +6,8 @@ from flask import (
     redirect, url_for, flash
 )
 import validators
+import requests
+from requests.exceptions import RequestException
 
 from page_analyzer.db import add_url, get_url, get_url_by_name, get_urls, add_url_check, get_url_checks
 
@@ -64,9 +66,12 @@ def check_url(id):
         return redirect(url_for('urls_list')), 404
 
     try:
-        add_url_check(id)
+        response = requests.get(url['name'], timeout=5)
+        response.raise_for_status()
+        status_code = response.status_code
+        add_url_check(id, status_code)  # ← теперь передаём status_code
         flash('Страница успешно проверена', 'success')
-    except Exception:
+    except RequestException:
         flash('Произошла ошибка при проверке', 'danger')
 
     return redirect(url_for('url_detail', id=id))
