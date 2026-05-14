@@ -92,9 +92,16 @@ def check_url(id):
         )
 
         # Обрезка до 200 символов
-        h1 = h1[:200] if h1 else None
-        title = title[:200] if title else None
-        description = description[:200] if description else None
+        def truncate(text, max_length=200):
+            if not text:
+                return text
+            if len(text) > max_length:
+                return text[:max_length - 3] + '...'
+            return text
+
+        h1 = truncate(h1)
+        title = truncate(title)
+        description = truncate(description)
 
         add_url_check(
             id, status_code, h1, title, description,
