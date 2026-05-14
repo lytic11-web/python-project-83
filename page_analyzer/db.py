@@ -31,11 +31,14 @@ def get_urls():
     return urls
 
 
-def add_url_check(url_id, status_code=None, h1=None, title=None, description=None):
+def add_url_check(
+    url_id, status_code=None, h1=None, title=None, description=None,
+):
     conn = get_db_connection()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(
-            """INSERT INTO url_checks (url_id, status_code, h1, title, description)
+            """INSERT INTO url_checks
+               (url_id, status_code, h1, title, description)
                VALUES (%s, %s, %s, %s, %s) RETURNING id;""",
             (url_id, status_code, h1, title, description)
         )

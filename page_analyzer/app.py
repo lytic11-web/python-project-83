@@ -10,7 +10,10 @@ import requests
 from requests.exceptions import RequestException
 from bs4 import BeautifulSoup
 
-from page_analyzer.db import add_url, get_url, get_url_by_name, get_urls, add_url_check, get_url_checks
+from page_analyzer.db import (
+    add_url, get_url, get_url_by_name, get_urls,
+    add_url_check, get_url_checks,
+)
 
 load_dotenv()
 
@@ -75,21 +78,36 @@ def check_url(id):
         soup = BeautifulSoup(response.text, 'html.parser')
 
         h1 = soup.h1.get_text(strip=True) if soup.h1 else None
-        title = soup.title.string.strip() if soup.title and soup.title.string else None
+        title = (
+            soup.title.string.strip()
+            if soup.title and soup.title.string
+            else None
+        )
 
         meta_desc = soup.find('meta', attrs={'name': 'description'})
-        description = meta_desc['content'].strip() if meta_desc and meta_desc.get('content') else None
+        description = (
+            meta_desc['content'].strip()
+            if meta_desc and meta_desc.get('content')
+            else None
+        )
 
         # Обрезка до 200 символов
         h1 = h1[:200] if h1 else None
         title = title[:200] if title else None
         description = description[:200] if description else None
 
-        add_url_check(id, status_code, h1, title, description)
-        flash('Страница успешно проверена', 'success')
+        add_url_check(
+            id, status_code, h1, title, description,
+        )
+
+        flash(
+            'Страница успешно проверена', 'success',
+        )
 
     except RequestException:
-        flash('Произошла ошибка при проверке', 'danger')
+        flash(
+            'Произошла ошибка при проверке', 'danger',
+        )
 
     return redirect(url_for('url_detail', id=id))
 
