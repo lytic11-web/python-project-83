@@ -1,19 +1,20 @@
 import os
-from urllib.parse import urlparse
-from dotenv import load_dotenv
-from flask import (
-    Flask, render_template, request,
-    redirect, url_for, flash
-)
-import validators
+
 import requests
+from dotenv import load_dotenv
+from flask import Flask, flash, redirect, render_template, request, url_for
 from requests.exceptions import RequestException
-from bs4 import BeautifulSoup
 
 from page_analyzer.db import (
-    add_url, get_url, get_url_by_name, get_urls,
-    add_url_check, get_url_checks,
+    add_url,
+    add_url_check,
+    get_url,
+    get_url_by_name,
+    get_url_checks,
+    get_urls,
 )
+from page_analyzer.parser import parse_page, truncate
+from page_analyzer.validator import normalize_url, validate_url
 
 load_dotenv()
 
@@ -28,23 +29,14 @@ def index():
 
 @app.post('/urls')
 def add_url_handler():
-    url_input = request.form.get('url', '').strip()
+    url_input = request.form.get('url', '')
 
-    if not url_input:
-        flash('URL обязателен', 'danger')
+    error = validate_url(url_input)
+    if error:
+        flash(error, 'danger')
         return render_template('index.html'), 422
 
-    if len(url_input) > 255:
-        flash('URL превышает 255 символов', 'danger')
-        return render_template('index.html'), 422
-
-    if not validators.url(url_input):
-        flash('Некорректный URL', 'danger')
-        return render_template('index.html'), 422
-
-    # Нормализация: оставляем только scheme + netloc
-    parsed = urlparse(url_input)
-    normalized_url = f"{parsed.scheme}://{parsed.netloc}"
+    normalized_url = normalize_url(url_input)
 
     existing = get_url_by_name(normalized_url)
     if existing:
@@ -74,47 +66,17 @@ def check_url(id):
         response.raise_for_status()
         status_code = response.status_code
 
-        # Парсинг HTML
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        h1 = soup.h1.get_text(strip=True) if soup.h1 else None
-        title = (
-            soup.title.string.strip()
-            if soup.title and soup.title.string
-            else None
-        )
-
-        meta_desc = soup.find('meta', attrs={'name': 'description'})
-        description = (
-            meta_desc['content'].strip()
-            if meta_desc and meta_desc.get('content')
-            else None
-        )
-
-        # Обрезка до 200 символов
-        def truncate(text, max_length=200):
-            if not text:
-                return text
-            if len(text) > max_length:
-                return text[:max_length - 3] + '...'
-            return text
+        h1, title, description = parse_page(response.text)
 
         h1 = truncate(h1)
         title = truncate(title)
         description = truncate(description)
 
-        add_url_check(
-            id, status_code, h1, title, description,
-        )
-
-        flash(
-            'Страница успешно проверена', 'success',
-        )
+        add_url_check(id, status_code, h1, title, description)
+        flash('Страница успешно проверена', 'success')
 
     except RequestException:
-        flash(
-            'Произошла ошибка при проверке', 'danger',
-        )
+        flash('Произошла ошибка при проверке', 'danger')
 
     return redirect(url_for('url_detail', id=id))
 
